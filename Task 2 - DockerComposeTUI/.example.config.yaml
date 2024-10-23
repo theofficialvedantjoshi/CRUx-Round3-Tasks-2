@@ -1,0 +1,27 @@
+keybinds:
+  MOVE_UP:  "\x1b[A"
+  MOVE_DOWN: "\x1b[B"
+  MOVE_LEFT: "\x1b[D"
+  MOVE_RIGHT: "\x1b[C"
+  SWITCH_PANEL: "\t"
+  COMPOSE_UP: "u"
+  COMPOSE_DOWN: "d"
+  VIEW_LOGS: "l"
+  LOGS_PAGE_UP: "k"
+  LOGS_PAGE_DOWN: "j"
+  LOGS_HOME: "g"
+  LOGS_END: "f"
+  VIEW_CONTAINERS: "c"
+  VIEW_VOLUMES: "v"
+  DEFAULT_VIEW: "q"
+  QUIT: "\x1b"
+
+colors:
+  CONSOLE: dark_blue
+  PANEL_FOCUS: white
+
+other:
+  LOG_TAIL: 100
+  MAX_LOGS_DISPLAY: 15
+  MAX_STDOUT_DISPLAY: 20
+  FPS: 10

@@ -1,34 +1,42 @@
-import time
 import os
+import time
+
 import blessed
+from backend import DockerHandler
+from backend.config import ConfigHandler
+from rich import box
 from rich.console import Console
 from rich.layout import ColumnSplitter, Layout, RowSplitter
 from rich.panel import Panel
 from rich.table import Table
-from backend import DockerHandler
-from rich import box
 
 
 class TUI:
     def __init__(self):
         self.term = blessed.Terminal()
+        self.config_handler = ConfigHandler()
+        self.config = self.config_handler.get_config(default=True)
+        self.keybind_actions = {
+            "MOVE_UP": self.handle_move_up,
+            "MOVE_DOWN": self.handle_move_down,
+            "MOVE_RIGHT": self.handle_move_right,
+            "MOVE_LEFT": self.handle_move_left,
+            "SWITCH_PANEL": self.handle_switch_panel,
+            "COMPOSE_UP": self.handle_compose_up,
+            "COMPOSE_DOWN": self.handle_compose_down,
+            "VIEW_LOGS": self.handle_view_logs,
+            "LOGS_PAGE_UP": self.handle_logs_page_up,
+            "LOGS_PAGE_DOWN": self.handle_logs_page_down,
+            "LOGS_HOME": self.handle_logs_home,
+            "LOGS_END": self.handle_logs_end,
+            "VIEW_CONTAINERS": self.handle_view_containers,
+            "DEFAULT_VIEW": self.handle_default_view,
+            "VIEW_VOLUMES": self.handle_view_volumes,
+            "QUIT": self.handle_quit,
+        }
         self.keybinds = {
-            "\x1b[A": self.handle_up,
-            "\x1b[B": self.handle_down,
-            "\x1b[C": self.handle_right,
-            "\x1b[D": self.handle_left,
-            "\t": self.handle_tab,
-            "u": self.handle_u,
-            "d": self.handle_d,
-            "l": self.handle_l,
-            "k": self.handle_page_up,
-            "j": self.handle_page_down,
-            "g": self.handle_home,
-            "f": self.handle_end,
-            "c": self.handle_c,
-            "q": self.handle_q,
-            "v": self.handle_v,
-            "\x1b": self.handle_escape,
+            key: self.keybind_actions[action]
+            for action, key in self.config["keybinds"].items()
         }
         self.docker_handler = DockerHandler()
         self.projects = self.docker_handler.get_projects_from_env()
@@ -44,10 +52,10 @@ class TUI:
         self.focused_panel = "left"
         self.right_panel = "containers"
         self.stdout = []
-        self.max_stdout_lines = 20
+        self.max_stdout_lines = self.config["other"]["MAX_STDOUT_DISPLAY"]
         self.logs = None
         self.logs_offset = 0
-        self.max_logs_display = 15
+        self.max_logs_display = self.config["other"]["MAX_LOGS_DISPLAY"]
 
     def _stream_docker_compose(self, process):
         for stderr_line in iter(process.stderr.readline, ""):
@@ -187,7 +195,7 @@ class TUI:
         layout.split(top_layout, stdout_panel, splitter=ColumnSplitter())
         self.console.print(layout)
 
-    def handle_up(self):
+    def handle_move_up(self):
         if self.focused_panel == "left" and self.project_index > 0:
             self.project_index -= 1
         elif self.focused_panel == "right":
@@ -197,7 +205,7 @@ class TUI:
             elif self.right_panel == "logs" and self.logs_offset > 0:
                 self.logs_offset -= 1
 
-    def handle_down(self):
+    def handle_move_down(self):
         if self.focused_panel == "left" and self.project_index < len(self.projects) - 1:
             self.project_index += 1
         elif self.focused_panel == "right":
@@ -212,31 +220,31 @@ class TUI:
                 if self.logs_offset < len(log_lines) - self.max_logs_display:
                     self.logs_offset += 1
 
-    def handle_right(self):
+    def handle_move_right(self):
         if self.focused_panel == "right":
             if self.right_panel == "containers":
                 self.container_hindex += 1
             elif self.right_panel == "volumes":
                 self.volumes_hindex = (self.volumes_hindex + 1) % len(self.volume_attrs)
 
-    def handle_left(self):
+    def handle_move_left(self):
         if self.focused_panel == "right":
             if self.right_panel == "containers" and self.container_hindex > 0:
                 self.container_hindex -= 1
             elif self.right_panel == "volumes" and self.volumes_hindex > 0:
                 self.volumes_hindex -= 1
 
-    def handle_tab(self):
+    def handle_switch_panel(self):
         self.focused_panel = "right" if self.focused_panel == "left" else "left"
         self.render()
 
-    def handle_u(self):
+    def handle_compose_up(self):
         self.add_output("docker-compose up...")
 
         result = self.docker_handler.compose(self.projects[self.project_index], "up")
         self._stream_docker_compose(result)
 
-    def handle_d(self):
+    def handle_compose_down(self):
         if self.focused_panel == "left":
             self.add_output("docker-compose down...")
             self.right_panel = "containers"
@@ -246,7 +254,7 @@ class TUI:
             )
             self._stream_docker_compose(result)
 
-    def handle_l(self):
+    def handle_view_logs(self):
         if self.right_panel == "containers" and len(self.containers) > 0:
             self.add_output(
                 "Opening log Inspection for container "
@@ -256,36 +264,36 @@ class TUI:
             self.right_panel = "logs"
             self.logs_offset = 0
 
-    def handle_page_up(self):
+    def handle_logs_page_up(self):
         if self.right_panel == "logs" and self.logs_offset > 0:
             if self.logs_offset - self.max_logs_display > 0:
                 self.logs_offset -= self.max_logs_display
             else:
                 self.logs_offset = 0
 
-    def handle_page_down(self):
+    def handle_logs_page_down(self):
         if self.right_panel == "logs":
             if self.logs_offset + self.max_logs_display < len(self.logs.split("\n")):
                 self.logs_offset += self.max_logs_display
             else:
                 self.logs_offset = len(self.logs.split("\n")) - self.max_logs_display
 
-    def handle_home(self):
+    def handle_logs_home(self):
         self.logs_offset = 0
 
-    def handle_end(self):
+    def handle_logs_end(self):
         self.logs_offset = len(self.logs.split("\n")) - self.max_logs_display
 
-    def handle_c(self):
+    def handle_view_containers(self):
         self.right_panel = "containers"
 
-    def handle_v(self):
+    def handle_view_volumes(self):
         self.right_panel = "volumes"
 
-    def handle_q(self):
+    def handle_default_view(self):
         self.right_panel = "containers"
 
-    def handle_escape(self):
+    def handle_quit(self):
         exit()
 
     def on_key(self):
@@ -301,7 +309,7 @@ class TUI:
                             self.containers[self.container_index].get("id")
                         )
                     handler()
-                time.sleep(0.1)
+                time.sleep(self.config["other"]["FPS"] / 1000)
                 self.render()
 
     def run(self):
