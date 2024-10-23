@@ -20,6 +20,7 @@ class ConfigHandler:
             "VIEW_CONTAINERS",
             "VIEW_VOLUMES",
             "DEFAULT_VIEW",
+            "CONTAINER_TERMINAL",
             "QUIT",
         ]
 

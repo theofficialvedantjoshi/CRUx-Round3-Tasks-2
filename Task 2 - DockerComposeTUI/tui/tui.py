@@ -1,5 +1,6 @@
 import os
 import time
+import subprocess
 
 import blessed
 from backend import DockerHandler
@@ -32,6 +33,7 @@ class TUI:
             "VIEW_CONTAINERS": self.handle_view_containers,
             "DEFAULT_VIEW": self.handle_default_view,
             "VIEW_VOLUMES": self.handle_view_volumes,
+            "CONTAINER_TERMINAL": self.handle_container_terminal,
             "QUIT": self.handle_quit,
         }
         self.keybinds = {
@@ -56,12 +58,13 @@ class TUI:
         self.logs = None
         self.logs_offset = 0
         self.max_logs_display = self.config["other"]["MAX_LOGS_DISPLAY"]
+        self.container_terminal = False
 
     def _stream_docker_compose(self, process):
         for stderr_line in iter(process.stderr.readline, ""):
             self.add_output(stderr_line.strip())
             self.render()
-
+        self.render()
         process.stderr.close()
         process.stdout.close()
         process.wait()
@@ -176,7 +179,13 @@ class TUI:
 
     def _create_stdout_panel(self):
         text = "\n".join(self.stdout[-self.max_stdout_lines :])
-        return Panel(text, title="Stdout", height=10)
+        return Panel(
+            text,
+            title="STDOUT",
+            height=20,
+            title_align="left",
+            border_style="dark_blue",
+        )
 
     def add_output(self, output):
         self.stdout.append(output)
@@ -187,12 +196,16 @@ class TUI:
         left_panel = self._create_left_panel(100)
         right_panel = self._create_right_panel(100)
         stdout_panel = self._create_stdout_panel()
-        top_layout = Layout()
-        top_layout.split(left_panel, right_panel, splitter=RowSplitter())
-        layout = Layout(
-            name="Docker Compose TUI",
-        )
-        layout.split(top_layout, stdout_panel, splitter=ColumnSplitter())
+        if not self.container_terminal:
+            top_layout = Layout()
+            top_layout.split(left_panel, right_panel, splitter=RowSplitter())
+            layout = Layout(
+                name="Docker Compose TUI",
+            )
+            layout.split(top_layout, stdout_panel, splitter=ColumnSplitter())
+        else:
+            layout = Layout(name="Docker Compose TUI")
+            layout.split(left_panel, stdout_panel, splitter=ColumnSplitter())
         self.console.print(layout)
 
     def handle_move_up(self):
@@ -204,6 +217,7 @@ class TUI:
                 self.container_index -= 1
             elif self.right_panel == "logs" and self.logs_offset > 0:
                 self.logs_offset -= 1
+        self.render()
 
     def handle_move_down(self):
         if self.focused_panel == "left" and self.project_index < len(self.projects) - 1:
@@ -219,6 +233,7 @@ class TUI:
                 log_lines = self.logs.split("\n")
                 if self.logs_offset < len(log_lines) - self.max_logs_display:
                     self.logs_offset += 1
+        self.render()
 
     def handle_move_right(self):
         if self.focused_panel == "right":
@@ -226,6 +241,7 @@ class TUI:
                 self.container_hindex += 1
             elif self.right_panel == "volumes":
                 self.volumes_hindex = (self.volumes_hindex + 1) % len(self.volume_attrs)
+        self.render()
 
     def handle_move_left(self):
         if self.focused_panel == "right":
@@ -233,6 +249,7 @@ class TUI:
                 self.container_hindex -= 1
             elif self.right_panel == "volumes" and self.volumes_hindex > 0:
                 self.volumes_hindex -= 1
+        self.render()
 
     def handle_switch_panel(self):
         self.focused_panel = "right" if self.focused_panel == "left" else "left"
@@ -243,6 +260,7 @@ class TUI:
 
         result = self.docker_handler.compose(self.projects[self.project_index], "up")
         self._stream_docker_compose(result)
+        self.render()
 
     def handle_compose_down(self):
         if self.focused_panel == "left":
@@ -253,6 +271,28 @@ class TUI:
                 self.projects[self.project_index], "down"
             )
             self._stream_docker_compose(result)
+        self.render()
+
+    def handle_container_terminal(self):
+        self.container_terminal = True
+        self.render()
+        if len(self.containers) == 0:
+            return
+
+        container_id = self.containers[self.container_index].get("id")
+        try:
+            subprocess.run(
+                [
+                    "tmux",
+                    "split-window",
+                    "-h",
+                    f"docker exec -it {container_id} /bin/bash",
+                ],
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            self.add_output(f"Failed to open terminal: {str(e)}")
+        self.render()
 
     def handle_view_logs(self):
         if self.right_panel == "containers" and len(self.containers) > 0:
@@ -263,6 +303,7 @@ class TUI:
             )
             self.right_panel = "logs"
             self.logs_offset = 0
+        self.render()
 
     def handle_logs_page_up(self):
         if self.right_panel == "logs" and self.logs_offset > 0:
@@ -270,6 +311,7 @@ class TUI:
                 self.logs_offset -= self.max_logs_display
             else:
                 self.logs_offset = 0
+        self.render()
 
     def handle_logs_page_down(self):
         if self.right_panel == "logs":
@@ -277,24 +319,31 @@ class TUI:
                 self.logs_offset += self.max_logs_display
             else:
                 self.logs_offset = len(self.logs.split("\n")) - self.max_logs_display
+        self.render()
 
     def handle_logs_home(self):
         self.logs_offset = 0
+        self.render()
 
     def handle_logs_end(self):
         self.logs_offset = len(self.logs.split("\n")) - self.max_logs_display
+        self.render()
 
     def handle_view_containers(self):
         self.right_panel = "containers"
+        self.render()
 
     def handle_view_volumes(self):
         self.right_panel = "volumes"
+        self.render()
 
     def handle_default_view(self):
+        self.container_terminal = False
         self.right_panel = "containers"
+        self.render()
 
     def handle_quit(self):
-        exit()
+        subprocess.run(["tmux", "kill-session", "-t", "docker-tui"])
 
     def on_key(self):
         with self.term.cbreak(), self.term.hidden_cursor():
@@ -309,12 +358,17 @@ class TUI:
                             self.containers[self.container_index].get("id")
                         )
                     handler()
-                time.sleep(self.config["other"]["FPS"] / 1000)
-                self.render()
+                    self.container_terminal = False
+                time.sleep(self.config["other"]["FPS"] / 100)
 
     def run(self):
-        self.render()
-        try:
-            self.on_key()
-        except KeyboardInterrupt:
-            pass
+        if "TMUX" not in os.environ:
+            session_name = "docker-tui"
+            subprocess.run(["tmux", "new", "-s", session_name, "python", "main.py"])
+            subprocess.run(["tmux", "attach", "-t", session_name])
+        else:
+            self.render()
+            try:
+                self.on_key()
+            except KeyboardInterrupt:
+                pass

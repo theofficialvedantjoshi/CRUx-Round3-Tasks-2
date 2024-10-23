@@ -14,6 +14,7 @@ keybinds:
   VIEW_CONTAINERS: "c"
   VIEW_VOLUMES: "v"
   DEFAULT_VIEW: "q"
+  CONTAINER_TERMINAL: "t"
   QUIT: "\x1b"
 
 colors:
