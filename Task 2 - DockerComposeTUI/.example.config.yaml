@@ -15,7 +15,7 @@ keybinds:
   VIEW_VOLUMES: "v"
   DEFAULT_VIEW: "q"
   CONTAINER_TERMINAL: "t"
-  QUIT: "\x1b"
+  QUIT: "e"
 
 colors:
   CONSOLE: dark_blue
@@ -25,4 +25,11 @@ other:
   LOG_TAIL: 100
   MAX_LOGS_DISPLAY: 15
   MAX_STDOUT_DISPLAY: 20
-  FPS: 10
+
+monitor:
+  CHECK_INTERVAL: 30
+  CPU_THRESHOLD: 80
+  MEMORY_THRESHOLD: 80
+  EMAIL: "vedant.messi101@gmail.com"
+  MAX_EMAILS: 5
+  EMAIL_INTERVAL: 3600

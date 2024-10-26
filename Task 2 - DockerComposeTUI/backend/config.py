@@ -23,6 +23,14 @@ class ConfigHandler:
             "CONTAINER_TERMINAL",
             "QUIT",
         ]
+        self.monitor = [
+            "CHECK_INTERVAL",
+            "CPU_THRESHOLD",
+            "MEMORY_THRESHOLD",
+            "EMAIL",
+            "MAX_EMAILS",
+            "EMAIL_INTERVAL",
+        ]
 
     def get_config(self, default=True):
         with open(".example.config.yaml") as file:
@@ -39,4 +47,7 @@ class ConfigHandler:
         other = self.get_config()["other"]
         if other["MAX_LOGS_DISPLAY"] < 1 or other["MAX_LOGS_DISPLAY"] > 50:
             return "Invalid MAX_LOGS_DISPLAY value"
+        monitor = self.get_config()["monitor"]
+        if list(monitor.keys()) != self.monitor:
+            return "Invalid monitor config"
         return "Success"

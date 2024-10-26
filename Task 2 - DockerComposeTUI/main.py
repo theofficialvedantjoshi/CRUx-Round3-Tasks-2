@@ -1,7 +1,8 @@
 from tui.tui import TUI
-from backend.config import ConfigHandler
+from backend import ConfigHandler, DockerMonitor
 
 if __name__ == "__main__":
+    monitor = DockerMonitor()
     config_handler = ConfigHandler()
     result = config_handler.validate_config()
     if result != "Success":

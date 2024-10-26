@@ -43,6 +43,8 @@ class DockerHandler:
 
     def get_containers(self):
         containers = self.client.containers.list()
+        # for container in containers:
+        #     print(container.stats(stream=False))
         return [
             {
                 "name": container.name,
@@ -106,3 +108,10 @@ class DockerHandler:
                     }
                 )
         return return_data
+
+    def get_container_stats(self, container_id: str):
+        return self.client.containers.get(container_id).stats(stream=False)
+
+
+# docker_handler = DockerHandler()
+# docker_handler.get_containers()

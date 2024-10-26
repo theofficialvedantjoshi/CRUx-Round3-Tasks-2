@@ -2,19 +2,20 @@ import os
 import time
 import subprocess
 
-import blessed
+# import blessed
+import sys, tty, os, termios
 from backend import DockerHandler
 from backend.config import ConfigHandler
 from rich import box
 from rich.console import Console
-from rich.layout import ColumnSplitter, Layout, RowSplitter
+from rich.layout import Layout
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
 
 class TUI:
     def __init__(self):
-        self.term = blessed.Terminal()
         self.config_handler = ConfigHandler()
         self.config = self.config_handler.get_config(default=True)
         self.keybind_actions = {
@@ -89,6 +90,7 @@ class TUI:
             table,
             title="Projects",
             border_style="dark_blue" if self.focused_panel == "right" else "white",
+            padding=(1, 1),
         )
 
     def _create_containter_panel(self, width):
@@ -125,6 +127,7 @@ class TUI:
             table,
             title="Containers",
             border_style="dark_blue" if self.focused_panel == "left" else "white",
+            padding=(1, 1),
         )
 
     def _create_volumes_panel(self, width):
@@ -191,21 +194,29 @@ class TUI:
         self.stdout.append(output)
 
     def render(self):
-        self.console.clear()
         os.system("clear")
-        left_panel = self._create_left_panel(100)
-        right_panel = self._create_right_panel(100)
-        stdout_panel = self._create_stdout_panel()
-        if not self.container_terminal:
-            top_layout = Layout()
-            top_layout.split(left_panel, right_panel, splitter=RowSplitter())
-            layout = Layout(
-                name="Docker Compose TUI",
+        layout = Layout(name="root")
+        layout.split(
+            Layout(name="padding", size=2),
+            Layout(name="header", size=2),
+            Layout(name="body", size=30),
+            Layout(name="footer", size=20),
+        )
+        layout["padding"].update(Text(""))
+        layout["header"].update(
+            Text(
+                "Docker Compose TUI",
+                justify="center",
+                style="bold white",
             )
-            layout.split(top_layout, stdout_panel, splitter=ColumnSplitter())
+        )
+        if not self.container_terminal:
+            body = Layout()
+            body.split_row(self._create_left_panel(100), self._create_right_panel(100))
+            layout["body"].update(body)
         else:
-            layout = Layout(name="Docker Compose TUI")
-            layout.split(left_panel, stdout_panel, splitter=ColumnSplitter())
+            layout["body"].split_row(self._create_left_panel(100), Layout())
+        layout["footer"].update(self._create_stdout_panel())
         self.console.print(layout)
 
     def handle_move_up(self):
@@ -346,20 +357,16 @@ class TUI:
         subprocess.run(["tmux", "kill-session", "-t", "docker-tui"])
 
     def on_key(self):
-        with self.term.cbreak(), self.term.hidden_cursor():
+        settings = termios.tcgetattr(sys.stdin)
+        tty.setcbreak(sys.stdin.fileno())
+        try:
             while True:
-                key = self.term.inkey(timeout=0.1)
-                handler = self.keybinds.get(key, None)
-                if handler:
-                    self.projects = self.docker_handler.get_projects_from_env()
-                    self.containers = self.docker_handler.get_containers()
-                    if len(self.containers) > 0:
-                        self.logs = self.docker_handler.get_logs(
-                            self.containers[self.container_index].get("id")
-                        )
-                    handler()
-                    self.container_terminal = False
-                time.sleep(self.config["other"]["FPS"] / 100)
+                k = os.read(sys.stdin.fileno(), 1).decode()
+                if k == "\x1b":
+                    k += os.read(sys.stdin.fileno(), 2).decode()
+                return self.keybinds.get(k, None)
+        finally:
+            termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
 
     def run(self):
         if "TMUX" not in os.environ:
@@ -369,6 +376,16 @@ class TUI:
         else:
             self.render()
             try:
-                self.on_key()
-            except KeyboardInterrupt:
+                while True:
+                    handler = self.on_key()
+                    if handler:
+                        self.projects = self.docker_handler.get_projects_from_env()
+                        self.containers = self.docker_handler.get_containers()
+                        if len(self.containers) > 0:
+                            self.logs = self.docker_handler.get_logs(
+                                self.containers[self.container_index].get("id")
+                            )
+                        handler()
+            except Exception as e:
+                print(e)
                 pass
