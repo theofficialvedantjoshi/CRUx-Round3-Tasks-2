@@ -13,6 +13,9 @@ class DockerMonitor:
         self.docker_handler = DockerHandler()
         self.config_handler = ConfigHandler()
         self.config = self.config_handler.get_config()
+        validation = self.config_handler.validate_config()
+        if validation != "Success":
+            sys.exit(1)
         self.email = self.config["monitor"]["EMAIL"]
         self.max_emails = self.config["monitor"]["MAX_EMAILS"]
         self.email_interval = self.config["monitor"]["EMAIL_INTERVAL"]
@@ -78,8 +81,7 @@ class DockerMonitor:
         containers = self.docker_handler.get_containers()
         for container_id in list(self.status.keys()):
             if container_id not in [container["id"] for container in containers]:
-                container_name = self.docker_handler.get_container_name(container_id)
-                self.email_body += f"Container {container_name} has been stopped.\n"
+                self.email_body += f"Container {container_id} has been stopped.\n"
                 del self.status[container_id]
                 del self.health[container_id]
         self.send_update()
@@ -101,7 +103,7 @@ class DockerMonitor:
                 msg["To"] = self.email
                 msg["Subject"] = self.email_subject
                 msg.attach(MIMEText(self.email_body, "plain"))
-                server.login("dockertui@gmail.com", "x")
+                server.login("dockertui@gmail.com", "fpfm twva gxyc gmug")
                 server.send_message(msg)
                 self.email_count += 1
                 self.last_sent_email = time.time()
@@ -111,6 +113,7 @@ class DockerMonitor:
             print(e)
 
     def run(self):
+
         while True:
             self.monitor_status()
             if self.email_count >= self.max_emails:
