@@ -6,29 +6,22 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 import psutil
-from backend import ConfigHandler, DockerHandler
+from backend import DockerHandler
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
 class DockerMonitor:
-    def __init__(self):
+    def __init__(self, default_config, projects_config):
         self.running = True
         self.docker_handler = DockerHandler()
-        self.config_handler = ConfigHandler()
-        self.default_config, self.projects_config = self.config_handler.get_config(
-            False, self.docker_handler.get_projects_from_env()
-        )
-        validation = self.config_handler.validate_config(
-            self.default_config, self.projects_config
-        )
-        if validation != "Success":
-            sys.exit(1)
-        self.email = self.default_config["monitor"]["EMAIL"]
-        self.max_emails = self.default_config["monitor"]["MAX_EMAILS"]
-        self.email_interval = self.default_config["monitor"]["EMAIL_INTERVAL"]
-        self.check_interval = self.default_config["monitor"]["CHECK_INTERVAL"]
+        self.default_config = default_config
+        self.projects_config = projects_config
+        self.email = self.default_config.monitor.EMAIL
+        self.max_emails = self.default_config.monitor.MAX_EMAILS
+        self.email_interval = self.default_config.monitor.EMAIL_INTERVAL
+        self.check_interval = self.default_config.monitor.CHECK_INTERVAL
         self.email_count = 0
         self.last_sent_email = time.time()
         self.status = {}
@@ -80,16 +73,12 @@ class DockerMonitor:
 
                 if (
                     cpu_percent
-                    > self.projects_config[container_project]["monitor"][
-                        "CPU_THRESHOLD"
-                    ]
+                    > self.projects_config[container_project].monitor.CPU_THRESHOLD
                 ):
                     self.email_body += f"The CPU usage of container {container_name} has exceeded the threshold.\n"
                 if (
                     memory_percent
-                    > self.projects_config[container_project]["monitor"][
-                        "MEMORY_THRESHOLD"
-                    ]
+                    > self.projects_config[container_project].monitor.MEMORY_THRESHOLD
                 ):
                     self.email_body += f"The memory usage of container {container_name} has exceeded the threshold.\n"
 

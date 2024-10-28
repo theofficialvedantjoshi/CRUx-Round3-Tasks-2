@@ -1,17 +1,14 @@
 import os
 
-from backend import ConfigHandler, DockerHandler
+from backend import DockerHandler, get_config
 
 
-def backup():
+def backup(default_config):
     docker_handler = DockerHandler()
-    config_handler = ConfigHandler()
-    default_config, _ = config_handler.get_config(
-        False, docker_handler.get_projects_from_env()
-    )
+    default_config, _ = get_config(False, docker_handler.get_projects_from_env())
     backup_dir = (
         os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        + default_config["backup"]["BACKUP_DIR"]
+        + default_config.backup.BACKUP_DIR
     )
     volumes = docker_handler.get_volumes()
 

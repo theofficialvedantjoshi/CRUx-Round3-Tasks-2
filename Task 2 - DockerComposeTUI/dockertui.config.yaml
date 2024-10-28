@@ -34,6 +34,6 @@ monitor:
 
 backup:
   CRON: "*/1 * * * *"
-  BACKUP_DIR: /backups
+  BACKUP_DIR: "/backups"
   
 

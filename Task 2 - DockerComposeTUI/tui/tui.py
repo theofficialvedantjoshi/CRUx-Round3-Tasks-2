@@ -3,8 +3,9 @@ import subprocess
 import sys
 import termios
 import tty
+from dataclasses import asdict
 
-from backend import ConfigHandler, DockerHandler, DockerMonitor
+from backend import DockerHandler, DockerMonitor
 from rich import box
 from rich.console import Console
 from rich.layout import Layout
@@ -14,13 +15,10 @@ from rich.text import Text
 
 
 class TUI:
-    def __init__(self):
-        self.docker_monitor = DockerMonitor()
+    def __init__(self, default_config, projects_config):
+        self.docker_monitor = DockerMonitor(default_config, projects_config)
         self.docker_handler = DockerHandler()
-        self.config_handler = ConfigHandler()
-        self.config, self.projects_config = self.config_handler.get_config(
-            default=False, projects=self.docker_handler.get_projects_from_env()
-        )
+        self.config = default_config
         self.keybind_actions = {
             "MOVE_UP": self.handle_move_up,
             "MOVE_DOWN": self.handle_move_down,
@@ -42,7 +40,7 @@ class TUI:
         }
         self.keybinds = {
             key: self.keybind_actions[action]
-            for action, key in self.config["keybinds"].items()
+            for action, key in asdict(self.config.keybinds).items()
         }
         self.projects = self.docker_handler.get_projects_from_env()
         self.containers = self.docker_handler.get_containers()
@@ -57,10 +55,10 @@ class TUI:
         self.focused_panel = "left"
         self.right_panel = "containers"
         self.stdout = []
-        self.max_stdout_lines = self.config["other"]["MAX_STDOUT_DISPLAY"]
+        self.max_stdout_lines = self.config.other.MAX_STDOUT_DISPLAY
         self.logs = None
         self.logs_offset = 0
-        self.max_logs_display = self.config["other"]["MAX_LOGS_DISPLAY"]
+        self.max_logs_display = self.config.other.MAX_LOGS_DISPLAY
         self.container_terminal = False
 
     def _stream_docker_compose(self, process):
