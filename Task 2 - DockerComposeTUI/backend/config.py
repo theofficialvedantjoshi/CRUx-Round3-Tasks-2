@@ -1,5 +1,7 @@
+import os
+
 from rich import color
-from yaml import load, Loader
+from yaml import Loader, load
 
 
 class ConfigHandler:
@@ -21,33 +23,54 @@ class ConfigHandler:
             "VIEW_VOLUMES",
             "DEFAULT_VIEW",
             "CONTAINER_TERMINAL",
+            "MONITOR_STATUS",
             "QUIT",
         ]
-        self.monitor = [
-            "CHECK_INTERVAL",
-            "CPU_THRESHOLD",
-            "MEMORY_THRESHOLD",
+        self.default_monitor = [
             "EMAIL",
             "MAX_EMAILS",
             "EMAIL_INTERVAL",
+            "CHECK_INTERVAL",
         ]
+        self.monitor = [
+            "CPU_THRESHOLD",
+            "MEMORY_THRESHOLD",
+        ]
+        self.backup = ["CRON", "BACKUP_DIR"]
 
-    def get_config(self, default=True):
-        with open(".example.config.yaml") as file:
-            return load(file, Loader=Loader)
+    def get_config(self, default=True, projects=None):
+        with open(
+            os.path.join(
+                os.path.dirname(os.path.dirname(__file__)), ".example.config.yaml"
+            )
+        ) as file:
+            default_config = load(file, Loader=Loader)
+        if default:
+            default_config, None
+        else:
+            project_configs = {}
+            for project in projects:
+                with open(f"{project}/config.yaml") as file:
+                    project_configs[project] = load(file, Loader=Loader)
+            return default_config, project_configs
 
-    def validate_config(self):
-        keybinds = list(self.get_config()["keybinds"].keys())
+    def validate_config(self, default_config, project_configs):
+        keybinds = list(default_config["keybinds"].keys())
         if keybinds != self.keybinds:
             return "Invalid keybinds"
-        colors = list(self.get_config()["colors"].values())
+        colors = list(default_config["colors"].values())
         for color_choice in colors:
             if color_choice not in list(color.ANSI_COLOR_NAMES.keys()):
                 return "Invalid color"
-        other = self.get_config()["other"]
+        other = default_config["other"]
         if other["MAX_LOGS_DISPLAY"] < 1 or other["MAX_LOGS_DISPLAY"] > 50:
             return "Invalid MAX_LOGS_DISPLAY value"
-        monitor = self.get_config()["monitor"]
-        if list(monitor.keys()) != self.monitor:
+        if list(default_config["monitor"].keys()) != self.default_monitor:
             return "Invalid monitor config"
+        for project, project_config in project_configs.items():
+            if list(project_config["monitor"].keys()) != self.monitor:
+                return f"Invalid monitor config for {project}"
+        backup = default_config["backup"]
+        if list(backup.keys()) != self.backup:
+            return "Invalid backup config"
         return "Success"

@@ -15,6 +15,7 @@ keybinds:
   VIEW_VOLUMES: "v"
   DEFAULT_VIEW: "q"
   CONTAINER_TERMINAL: "t"
+  MONITOR_STATUS: "m"
   QUIT: "e"
 
 colors:
@@ -27,9 +28,13 @@ other:
   MAX_STDOUT_DISPLAY: 20
 
 monitor:
-  CHECK_INTERVAL: 30
-  CPU_THRESHOLD: 80
-  MEMORY_THRESHOLD: 80
   EMAIL: "vedant.messi101@gmail.com"
   MAX_EMAILS: 5
-  EMAIL_INTERVAL: 3600
+  EMAIL_INTERVAL: 30
+  CHECK_INTERVAL: 30
+
+backup:
+  CRON: "*/1 * * * *"
+  BACKUP_DIR: /backups
+  
+

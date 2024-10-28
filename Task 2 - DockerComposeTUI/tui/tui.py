@@ -1,11 +1,10 @@
 import os
-import time
 import subprocess
+import sys
+import termios
+import tty
 
-# import blessed
-import sys, tty, os, termios
-from backend import DockerHandler
-from backend.config import ConfigHandler
+from backend import ConfigHandler, DockerHandler, DockerMonitor
 from rich import box
 from rich.console import Console
 from rich.layout import Layout
@@ -16,8 +15,12 @@ from rich.text import Text
 
 class TUI:
     def __init__(self):
+        self.docker_monitor = DockerMonitor()
+        self.docker_handler = DockerHandler()
         self.config_handler = ConfigHandler()
-        self.config = self.config_handler.get_config(default=True)
+        self.config, self.projects_config = self.config_handler.get_config(
+            default=False, projects=self.docker_handler.get_projects_from_env()
+        )
         self.keybind_actions = {
             "MOVE_UP": self.handle_move_up,
             "MOVE_DOWN": self.handle_move_down,
@@ -35,13 +38,13 @@ class TUI:
             "DEFAULT_VIEW": self.handle_default_view,
             "VIEW_VOLUMES": self.handle_view_volumes,
             "CONTAINER_TERMINAL": self.handle_container_terminal,
+            # "MONITOR_STATUS": self.handle_monitor_status,
             "QUIT": self.handle_quit,
         }
         self.keybinds = {
             key: self.keybind_actions[action]
             for action, key in self.config["keybinds"].items()
         }
-        self.docker_handler = DockerHandler()
         self.projects = self.docker_handler.get_projects_from_env()
         self.containers = self.docker_handler.get_containers()
         self.volumes = self.docker_handler.get_volumes()
@@ -50,7 +53,7 @@ class TUI:
         self.container_index = 0
         self.container_hindex = 0
         self.volume_index = 0
-        self.volume_attrs = ["name", "driver", "mountpoints", "containers"]
+        self.volume_attrs = ["name", "driver", "mountpoint", "containers"]
         self.volumes_hindex = 0
         self.focused_panel = "left"
         self.right_panel = "containers"
@@ -322,6 +325,8 @@ class TUI:
                 self.logs_offset -= self.max_logs_display
             else:
                 self.logs_offset = 0
+        # else:
+        #     self.docker_monitor.kill_monitor()
         self.render()
 
     def handle_logs_page_down(self):

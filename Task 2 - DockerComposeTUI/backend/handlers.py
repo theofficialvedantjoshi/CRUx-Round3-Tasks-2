@@ -43,8 +43,6 @@ class DockerHandler:
 
     def get_containers(self):
         containers = self.client.containers.list()
-        # for container in containers:
-        #     print(container.stats(stream=False))
         return [
             {
                 "name": container.name,
@@ -53,6 +51,9 @@ class DockerHandler:
                 "health": container.health,
                 "image": container.image,
                 "ports": ", ".join(host for host, _ in container.ports.items()),
+                "project": container.attrs["Config"]["Labels"]
+                .get("com.docker.compose.project.config_files")
+                .split("docker-compose.yml")[0],
             }
             for container in containers
         ]
@@ -85,13 +86,7 @@ class DockerHandler:
             ]:
                 name = volume.attrs["Name"]
                 driver = volume.attrs["Driver"]
-                mountpoints = ", ".join(
-                    [
-                        volume_containers[container_name]["mountpoint"]
-                        for container_name, volume_name in volume_containers.items()
-                        if volume_name["name"] == name
-                    ]
-                )
+                mountpoint = volume.attrs["Mountpoint"]
                 containers = ", ".join(
                     [
                         container_name
@@ -103,15 +98,11 @@ class DockerHandler:
                     {
                         "name": name,
                         "driver": driver,
-                        "mountpoints": mountpoints,
+                        "mountpoint": mountpoint,
                         "containers": containers,
                     }
                 )
         return return_data
-
+    
     def get_container_stats(self, container_id: str):
         return self.client.containers.get(container_id).stats(stream=False)
-
-
-# docker_handler = DockerHandler()
-# docker_handler.get_containers()
