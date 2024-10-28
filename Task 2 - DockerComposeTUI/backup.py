@@ -13,30 +13,29 @@ def backup(default_config):
     volumes = docker_handler.get_volumes()
 
     for volume in volumes:
-        volume_name = volume["name"]
-        volume_containers = volume["containers"]
+        volume_containers = volume.containers
 
         for container in volume_containers.split(", "):
-            container_backup_dir = f"{backup_dir}/{volume_name}/{container}"
+            container_backup_dir = f"{backup_dir}/{volume.name}/{container}"
             os.makedirs(container_backup_dir, exist_ok=True)
             try:
                 docker_handler.client.containers.run(
                     image="busybox",
-                    command=f"tar -zcvf /backup/{volume_name}.tar.gz /backup-volume",
+                    command=f"tar -zcvf /backup/{volume.name}.tar.gz /backup-volume",
                     volumes={
-                        volume_name: {"bind": "/backup-volume", "mode": "ro"},
+                        volume.name: {"bind": "/backup-volume", "mode": "ro"},
                         container_backup_dir: {"bind": "/backup", "mode": "rw"},
                     },
                     remove=True,
                 )
 
                 print(
-                    f"Created backup for volume {volume_name} associated with container {container}"
+                    f"Created backup for volume {volume.name} associated with container {container}"
                 )
 
             except Exception as e:
                 print(
-                    f"Error backing up volume {volume_name} for container {container}: {str(e)}"
+                    f"Error backing up volume {volume.name} for container {container}: {str(e)}"
                 )
                 continue
 

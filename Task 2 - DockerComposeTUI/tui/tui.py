@@ -102,11 +102,11 @@ class TUI:
             )
         else:
             for i, container in enumerate(self.containers):
-                name = container.get("name", "N/A")
-                status = container.get("status", "N/A")
-                health = container.get("health", "N/A")
-                ports = container.get("ports", "N/A")
-                image = container.get("image", "N/A")
+                name = container.name
+                status = container.status
+                health = container.health
+                ports = container.ports
+                image = container.image
                 container_info = f"❑ {name} | {status} | {health} | {image} | {ports}"
                 max_visible_chars = width - 10
                 if i == self.container_index:
@@ -139,11 +139,10 @@ class TUI:
             for i, volume in enumerate(self.volumes):
                 if i == self.volume_index:
                     attr = self.volume_attrs[self.volumes_hindex]
-                    value = volume.get(attr, "N/A")
+                    value = asdict(volume).get(attr)
                     volume_info = f"⊟ {attr} - {value}"
                 else:
-                    name = volume.get("name", "N/A")
-                    volume_info = f"⊟ Name - {name}"
+                    volume_info = f"⊟ Name - {volume.name}"
                 if i == self.volume_index and self.focused_panel == "right":
                     table.add_row(volume_info, style="white", end_section=True)
                 else:
@@ -194,6 +193,8 @@ class TUI:
         self.stdout.append(output)
 
     def render(self):
+        self.containers = self.docker_handler.get_containers()
+        self.volumes = self.docker_handler.get_volumes()
         os.system("clear")
         layout = Layout(name="root")
         layout.split(
@@ -290,7 +291,7 @@ class TUI:
         if len(self.containers) == 0:
             return
 
-        container_id = self.containers[self.container_index].get("id")
+        container_id = self.containers[self.container_index].id
         try:
             subprocess.run(
                 [
@@ -309,7 +310,7 @@ class TUI:
         if self.right_panel == "containers" and len(self.containers) > 0:
             self.add_output(
                 "Opening log Inspection for container "
-                + self.containers[self.container_index].get("name")
+                + self.containers[self.container_index].name
                 + "..."
             )
             self.right_panel = "logs"
@@ -386,7 +387,7 @@ class TUI:
                         self.containers = self.docker_handler.get_containers()
                         if len(self.containers) > 0:
                             self.logs = self.docker_handler.get_logs(
-                                self.containers[self.container_index].get("id")
+                                self.containers[self.container_index].id
                             )
                         handler()
             except Exception as e:

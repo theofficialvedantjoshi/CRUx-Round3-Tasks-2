@@ -3,6 +3,7 @@ import subprocess
 
 import docker
 from dotenv import load_dotenv
+from models.docker import Container, Volume
 
 load_dotenv()
 
@@ -55,17 +56,17 @@ class DockerHandler:
     def get_containers(self):
         containers = self.client.containers.list()
         return [
-            {
-                "name": container.name,
-                "id": container.id,
-                "status": container.status,
-                "health": container.health,
-                "image": container.image,
-                "ports": ", ".join(host for host, _ in container.ports.items()),
-                "project": container.attrs["Config"]["Labels"]
+            Container(
+                name=container.name,
+                id=container.id,
+                status=container.status,
+                health=container.health,
+                image=container.image,
+                ports=", ".join(host for host, _ in container.ports.items()),
+                project=container.attrs["Config"]["Labels"]
                 .get("com.docker.compose.project.config_files")
                 .split("docker-compose.yml")[0],
-            }
+            )
             for container in containers
         ]
 
@@ -106,12 +107,12 @@ class DockerHandler:
                     ]
                 )
                 return_data.append(
-                    {
-                        "name": name,
-                        "driver": driver,
-                        "mountpoint": mountpoint,
-                        "containers": containers,
-                    }
+                    Volume(
+                        name=name,
+                        driver=driver,
+                        mountpoint=mountpoint,
+                        containers=containers,
+                    )
                 )
         return return_data
 

@@ -33,27 +33,23 @@ class DockerMonitor:
         containers = self.docker_handler.get_containers()
 
         for container in containers:
-            container_id = container["id"]
-            container_name = container["name"]
-            container_project = container["project"]
+            if container.id not in self.status:
+                self.status[container.id] = container.status
+                self.health[container.id] = container.health
 
-            if container_id not in self.status:
-                self.status[container_id] = container["status"]
-                self.health[container_id] = container["health"]
-
-            if container["status"] != self.status[container_id]:
-                self.status[container_id] = container["status"]
-                self.email_body += f"The status of container {container_name} has changed to {container['status']}.\n"
+            if container.status != self.status[container.id]:
+                self.status[container.id] = container.status
+                self.email_body += f"The status of container {container.name} has changed to {container.status}.\n"
 
             if (
-                container["health"] != self.health[container_id]
-                and container["health"] != "unknown"
+                container.health != self.health[container.id]
+                and container.health != "unknown"
             ):
-                self.health[container_id] = container["health"]
-                self.email_body += f"The health of container {container_name} has changed to {container['health']}.\n"
+                self.health[container.id] = container.health
+                self.email_body += f"The health of container {container.name} has changed to {container.health}.\n"
 
-            if container["status"] == "running":
-                stats = self.docker_handler.get_container_stats(container_id)
+            if container.status == "running":
+                stats = self.docker_handler.get_container_stats(container.id)
                 cpu_delta = (
                     stats["cpu_stats"]["cpu_usage"]["total_usage"]
                     - stats["precpu_stats"]["cpu_usage"]["total_usage"]
@@ -73,21 +69,21 @@ class DockerMonitor:
 
                 if (
                     cpu_percent
-                    > self.projects_config[container_project].monitor.CPU_THRESHOLD
+                    > self.projects_config[container.project].monitor.CPU_THRESHOLD
                 ):
-                    self.email_body += f"The CPU usage of container {container_name} has exceeded the threshold.\n"
+                    self.email_body += f"The CPU usage of container {container.name} has exceeded the threshold.\n"
                 if (
                     memory_percent
-                    > self.projects_config[container_project].monitor.MEMORY_THRESHOLD
+                    > self.projects_config[container.project].monitor.MEMORY_THRESHOLD
                 ):
-                    self.email_body += f"The memory usage of container {container_name} has exceeded the threshold.\n"
+                    self.email_body += f"The memory usage of container {container.name} has exceeded the threshold.\n"
 
         self.send_update()
 
     def update_container(self):
         containers = self.docker_handler.get_containers()
         for container_id in list(self.status.keys()):
-            if container_id not in [container["id"] for container in containers]:
+            if container_id not in [container.id for container in containers]:
                 self.email_body += f"Container {container_id} has been stopped.\n"
                 del self.status[container_id]
                 del self.health[container_id]
