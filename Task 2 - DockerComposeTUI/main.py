@@ -1,15 +1,19 @@
 import multiprocessing
 import os
-import threading
-from signal import SIGTERM
+import subprocess
 
 from backend import ConfigHandler, DockerMonitor
 from crontab import CronTab
-from daemon import DaemonContext
 from tui.tui import TUI
 
 if __name__ == "__main__":
     monitor = DockerMonitor()
+    if not monitor.check_monitor:
+        venv = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".venv"
+        )
+        command = f"nohup {os.path.join(venv, 'bin', 'python3')} '{os.path.join(os.path.dirname(os.path.abspath(__file__)), 'service.py')}'"
+        subprocess.Popen(command, shell=True)
     config_handler = ConfigHandler()
     default_config, project_configs = config_handler.get_config(
         False,
@@ -19,7 +23,6 @@ if __name__ == "__main__":
     if result != "Success":
         print(result, "\nPlease check the format of your config file.")
         exit(1)
-    print("here")
     cron = CronTab(user=True)
     for cron_job in cron:
         if cron_job.comment == "dockertui_backup":

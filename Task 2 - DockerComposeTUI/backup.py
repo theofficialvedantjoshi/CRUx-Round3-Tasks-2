@@ -1,5 +1,6 @@
-from backend import DockerHandler, ConfigHandler
 import os
+
+from backend import ConfigHandler, DockerHandler
 
 
 def backup():

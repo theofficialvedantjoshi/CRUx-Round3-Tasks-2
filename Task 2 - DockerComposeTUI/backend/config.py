@@ -23,7 +23,6 @@ class ConfigHandler:
             "VIEW_VOLUMES",
             "DEFAULT_VIEW",
             "CONTAINER_TERMINAL",
-            "MONITOR_STATUS",
             "QUIT",
         ]
         self.default_monitor = [
@@ -41,7 +40,7 @@ class ConfigHandler:
     def get_config(self, default=True, projects=None):
         with open(
             os.path.join(
-                os.path.dirname(os.path.dirname(__file__)), ".example.config.yaml"
+                os.path.dirname(os.path.dirname(__file__)), "dockertui.config.yaml"
             )
         ) as file:
             default_config = load(file, Loader=Loader)
@@ -50,7 +49,7 @@ class ConfigHandler:
         else:
             project_configs = {}
             for project in projects:
-                with open(f"{project}/config.yaml") as file:
+                with open(f"{project}/project.config.yaml") as file:
                     project_configs[project] = load(file, Loader=Loader)
             return default_config, project_configs
 

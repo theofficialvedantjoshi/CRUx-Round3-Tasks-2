@@ -15,7 +15,6 @@ keybinds:
   VIEW_VOLUMES: "v"
   DEFAULT_VIEW: "q"
   CONTAINER_TERMINAL: "t"
-  MONITOR_STATUS: "m"
   QUIT: "e"
 
 colors:

@@ -38,7 +38,6 @@ class TUI:
             "DEFAULT_VIEW": self.handle_default_view,
             "VIEW_VOLUMES": self.handle_view_volumes,
             "CONTAINER_TERMINAL": self.handle_container_terminal,
-            # "MONITOR_STATUS": self.handle_monitor_status,
             "QUIT": self.handle_quit,
         }
         self.keybinds = {
@@ -325,8 +324,9 @@ class TUI:
                 self.logs_offset -= self.max_logs_display
             else:
                 self.logs_offset = 0
-        # else:
-        #     self.docker_monitor.kill_monitor()
+        else:
+            self.docker_monitor.kill_monitor()
+            self.stdout.append("Killed monitor")
         self.render()
 
     def handle_logs_page_down(self):

@@ -1,0 +1,3 @@
+monitor:
+  CPU_THRESHOLD: 80
+  MEMORY_THRESHOLD: 80

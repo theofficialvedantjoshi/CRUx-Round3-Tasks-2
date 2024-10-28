@@ -13,11 +13,22 @@ class DockerHandler:
         self.project_env = os.getenv("PROJECTS_PATH", "")
 
     def get_projects_from_env(self):
-        return [
-            project
-            for project in self.project_env.split(os.pathsep)
-            if os.path.isfile(os.path.join(project, "docker-compose.yml"))
-        ]
+        projects = []
+        for project in self.project_env.split(os.pathsep):
+            if os.path.isfile(os.path.join(project, "docker-compose.yml")):
+                projects.append(project)
+                if not os.path.isfile(os.path.join(project, "project.config.yaml")):
+                    with open(
+                        os.path.join(
+                            os.path.dirname(os.path.dirname(__file__)),
+                            "project.config.yaml",
+                        )
+                    ) as file:
+                        with open(
+                            os.path.join(project, "project.config.yaml"), "w"
+                        ) as f:
+                            f.write(file.read())
+        return projects
 
     def add_project(self, project_path: str):
         self.project_env = os.getenv("PROJECTS_PATH", "") + os.pathsep + project_path
@@ -103,6 +114,6 @@ class DockerHandler:
                     }
                 )
         return return_data
-    
+
     def get_container_stats(self, container_id: str):
         return self.client.containers.get(container_id).stats(stream=False)
