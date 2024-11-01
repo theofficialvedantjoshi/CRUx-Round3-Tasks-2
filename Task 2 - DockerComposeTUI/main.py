@@ -3,7 +3,7 @@ import subprocess
 
 from backend import DockerHandler, DockerMonitor, get_config
 from crontab import CronTab
-from tui.tui import TUI
+from frontend import TUI
 
 if __name__ == "__main__":
     default_config, project_configs = get_config(

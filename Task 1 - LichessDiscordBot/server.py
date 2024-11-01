@@ -62,7 +62,11 @@ def authorize():
         headers = {"Authorization": f"Bearer {bearer}"}
         response = requests.get(f"{LICHESS_HOST}/api/account", headers=headers)
         response.raise_for_status()
-        auth = Auth(discord_id=discord_user_id, token=bearer)
+        auth = Auth(
+            discord_id=discord_user_id,
+            token=bearer,
+            lichess_username=response.json()["username"],
+        )
         r.set(
             f"auth_{discord_user_id}",
             json.dumps(asdict(auth)),

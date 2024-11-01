@@ -45,7 +45,7 @@ class TUI:
         self.projects = self.docker_handler.get_projects_from_env()
         self.containers = self.docker_handler.get_containers()
         self.volumes = self.docker_handler.get_volumes()
-        self.console = Console(style="dark_blue")
+        self.console = Console(style=self.config.colors.CONSOLE)
         self.project_index = 0
         self.container_index = 0
         self.container_hindex = 0
@@ -83,13 +83,21 @@ class TUI:
         else:
             for i, project in enumerate(self.projects):
                 if i == self.project_index and self.focused_panel == "left":
-                    table.add_row("🗀 " + project, style="white", end_section=True)
+                    table.add_row(
+                        "🗀 " + project,
+                        style=self.config.colors.PANEL_FOCUS,
+                        end_section=True,
+                    )
                 else:
                     table.add_row("🗀 " + project, end_section=True)
         return Panel(
             table,
             title="Projects",
-            border_style="dark_blue" if self.focused_panel == "right" else "white",
+            border_style=(
+                self.config.colors.CONSOLE
+                if self.focused_panel == "right"
+                else self.config.colors.PANEL_FOCUS
+            ),
             padding=(1, 1),
         )
 
@@ -120,13 +128,21 @@ class TUI:
                 else:
                     container_info = container_info[:max_visible_chars]
                 if i == self.container_index and self.focused_panel == "right":
-                    table.add_row(container_info, style="white", end_section=True)
+                    table.add_row(
+                        container_info,
+                        style=self.config.colors.PANEL_FOCUS,
+                        end_section=True,
+                    )
                 else:
                     table.add_row(container_info, end_section=True)
         return Panel(
             table,
             title="Containers",
-            border_style="dark_blue" if self.focused_panel == "left" else "white",
+            border_style=(
+                self.config.colors.CONSOLE
+                if self.focused_panel == "left"
+                else self.config.colors.PANEL_FOCUS
+            ),
             padding=(1, 1),
         )
 
@@ -144,13 +160,21 @@ class TUI:
                 else:
                     volume_info = f"⊟ Name - {volume.name}"
                 if i == self.volume_index and self.focused_panel == "right":
-                    table.add_row(volume_info, style="white", end_section=True)
+                    table.add_row(
+                        volume_info,
+                        style=self.config.colors.PANEL_FOCUS,
+                        end_section=True,
+                    )
                 else:
                     table.add_row(volume_info, end_section=True)
         return Panel(
             table,
             title="Volumes",
-            border_style="dark_blue" if self.focused_panel == "left" else "white",
+            border_style=(
+                self.config.colors.CONSOLE
+                if self.focused_panel == "left"
+                else self.config.colors.PANEL_FOCUS
+            ),
         )
 
     def _create_logs_panel(self, width):
@@ -168,7 +192,11 @@ class TUI:
         return Panel(
             table,
             title=f"Log Inspection ({self.logs_offset + 1}-{min(self.logs_offset + self.max_logs_display, len(log_lines))} of {len(log_lines)})",
-            border_style="dark_blue" if self.focused_panel == "left" else "white",
+            border_style=(
+                self.config.colors.CONSOLE
+                if self.focused_panel == "left"
+                else self.config.colors.PANEL_FOCUS
+            ),
         )
 
     def _create_right_panel(self, width):
@@ -186,7 +214,7 @@ class TUI:
             title="STDOUT",
             height=20,
             title_align="left",
-            border_style="dark_blue",
+            border_style=self.config.colors.CONSOLE,
         )
 
     def add_output(self, output):
