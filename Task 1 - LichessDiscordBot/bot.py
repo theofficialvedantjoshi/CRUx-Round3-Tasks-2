@@ -3,10 +3,10 @@ import json
 import os
 
 import berserk
-import chess
 import discord
 import lichess_client
 import redis
+from board import generate_board
 from discord.ext import commands
 from dotenv import load_dotenv
 
@@ -33,52 +33,35 @@ def get_auth(user_id) -> tuple:
     return data["token"], data["lichess_username"]
 
 
-def render_board(fen: str) -> str:
-    board = ""
-    rows = fen.split(" ")[0].split("/")
-    x_marks = ["1", "2", "3", "4", "5", "6", "7", "8"]
-    y_marks = ["a", "b", "c", "d", "e", "f", "g", "h"]
-    for row in rows:
-        board += x_marks.pop(0) + "  "
-        for char in row:
-            if char.isdigit():
-                board += " " * int(char) * 2
-            else:
-                board += " " + chess.UNICODE_PIECE_SYMBOLS[char] + " "
-        board += "\n"
-    board += "   " + "  ".join(y_marks) + "\n"
-    return board
-
-
-def generate_board(moves: list[str]) -> str:
-    board = chess.Board()
-    if moves is not None:
-        for move in moves.split(" "):
-            board.push(chess.Move.from_uci(move))
-    return render_board(board.fen())
-
-
 async def stream_game(ctx, game_id, client: lichess_client.APIClient):
-    message = await ctx.send("Loading game...")
+    embed = discord.Embed(title="Game in progress")
+    message = await ctx.send(embed=embed)
     async for event in client.boards.stream_game_state(game_id):
         print(event.entity.content)
         event = json.loads(event.entity.content)
+        if event["type"] == "gameFull":
+            white = event["white"]["name"]
+            black = event["black"]["name"]
+            await ctx.send(f"White: {white}\nBlack: {black}")
         if event.get("status") in {"mate", "draw", "resign"}:
             result = f"Game over! {event['status'].capitalize()}."
             if event.get("winner"):
                 result += f" Winner: {event['winner']}."
-            await message.edit(content=result)
+            embed = discord.Embed(title=result)
+            await message.edit(embed=embed)
             break
         elif event.get("rematch", None):
-            await message.edit(
-                content="Rematch!\nJoin new game: "
-                + "https://lichess.org/"
-                + event["rematch"]
+            embed = discord.Embed(
+                title="Rematch!",
+                description="Join the new game!",
+                url=f"https://lichess.org/{event['rematch']}",
             )
+            await message.edit(embed=embed)
             break
         moves = event.get("moves", None)
-        board = generate_board(moves)
-        await message.edit(content=board)
+        board, image = generate_board(moves)
+
+        await message.edit(embed=board, attachments=[image])
 
 
 async def stream_events(ctx, client: lichess_client.APIClient):
