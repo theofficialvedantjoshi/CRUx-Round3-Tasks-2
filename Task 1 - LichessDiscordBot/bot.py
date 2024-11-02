@@ -6,7 +6,7 @@ import berserk
 import discord
 import lichess_client
 import redis
-from board import generate_board
+from board import generate_board, create_board_gif
 from discord.ext import commands
 from dotenv import load_dotenv
 
@@ -291,6 +291,37 @@ async def decline(ctx, reason="generic"):
     except:
         await ctx.send("Invalid challenge.")
         return
+
+
+@bot.command(name="create_gif", help="Create a gif of the game")
+async def create_gif(ctx, game_id):
+    user_id = ctx.author.id
+    token, username = get_auth(user_id)
+    if token is None:
+        await ctx.send("You must login first.")
+        return
+    token_session = berserk.TokenSession(token)
+    client = berserk.Client(session=token_session)
+    try:
+        game = client.games.export(game_id)
+    except:
+        await ctx.send("Invalid game ID.")
+        return
+    print(game)
+    moves = game["moves"]
+    white = game["players"]["white"]
+    black = game["players"]["black"]
+    if white.get("aiLevel", None):
+        white = f"AI lvl {white['aiLevel']}"
+    else:
+        white = game["players"]["white"]["user"]["name"]
+    if black.get("aiLevel", None):
+        black = f"AI lvl {black['aiLevel']}"
+    else:
+        black = game["players"]["black"]["user"]["name"]
+    embed, image = create_board_gif(moves)
+    embed.title = f"{white} vs {black}"
+    await ctx.send(embed=embed, file=image)
 
 
 if __name__ == "__main__":
