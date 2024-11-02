@@ -320,7 +320,7 @@ async def create_gif(ctx, game_id):
     else:
         black = game["players"]["black"]["user"]["name"]
     embed, image = create_board_gif(moves)
-    embed.title = f"{white} vs {black}"
+    embed.title = f"White {white} vs Black {black}"
     await ctx.send(embed=embed, file=image)
 
 
