@@ -13,6 +13,9 @@ load_dotenv()
 
 
 class DockerMonitor:
+    """
+    Monitor class to check the health of containers and send alerts."""
+
     def __init__(self, default_config, projects_config):
         self.running = True
         self.docker_handler = DockerHandler()
@@ -29,7 +32,10 @@ class DockerMonitor:
         self.email_subject = "Container Health Alert!"
         self.email_body = ""
 
-    def monitor(self):
+    def monitor(self) -> None:
+        """
+        Monitor the health of containers and send alerts.
+        """
         containers = self.docker_handler.get_containers()
 
         for container in containers:
@@ -80,7 +86,9 @@ class DockerMonitor:
 
         self.send_update()
 
-    def update_container(self):
+    def update_container(self) -> None:
+        """
+        Update the container status and health."""
         containers = self.docker_handler.get_containers()
         for container_id in list(self.status.keys()):
             if container_id not in [container.id for container in containers]:
@@ -90,7 +98,9 @@ class DockerMonitor:
         self.send_update()
         self.email_body = ""
 
-    def send_update(self):
+    def send_update(self) -> None:
+        """
+        Send email alerts."""
         if not self.email_body:
             return
         if (
@@ -115,11 +125,10 @@ class DockerMonitor:
         except Exception as e:
             print(e)
 
-    def stop(self):
-        self.running = False
-
-    def run(self):
-        while self.running:
+    def run(self) -> None:
+        """
+        Run the monitor."""
+        while True:
             self.monitor()
             if self.email_count >= self.max_emails:
                 self.last_sent_email = time.time()

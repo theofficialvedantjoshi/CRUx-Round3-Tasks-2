@@ -9,11 +9,20 @@ load_dotenv()
 
 
 class DockerHandler:
+    """
+    Docker Handler class to interact with the Docker Engine."""
+
     def __init__(self):
         self.client = docker.from_env()
         self.project_env = os.getenv("PROJECTS_PATH", "")
 
-    def get_projects_from_env(self):
+    def get_projects_from_env(self) -> list[str]:
+        """
+        Get the list of projects from the environment variable.
+
+        Returns:
+        - list of project directories.
+        """
         projects = []
         for project in self.project_env.split(os.pathsep):
             if os.path.isfile(os.path.join(project, "docker-compose.yml")):
@@ -31,11 +40,17 @@ class DockerHandler:
                             f.write(file.read())
         return projects
 
-    def add_project(self, project_path: str):
-        self.project_env = os.getenv("PROJECTS_PATH", "") + os.pathsep + project_path
-        os.environ["PROJECTS_PATH"] = self.project_env
+    def compose(self, project_path: str, command: str) -> subprocess.Popen:
+        """
+        Run docker-compose commands.
 
-    def compose(self, project_path: str, command: str):
+        Args:
+        - project_path: path to the project directory.
+        - command: docker-compose command to run.
+
+        Returns:
+        - subprocess.Popen object.
+        """
         os.chdir(project_path)
         if command == "up":
             result = subprocess.Popen(
@@ -53,7 +68,13 @@ class DockerHandler:
             )
         return result
 
-    def get_containers(self):
+    def get_containers(self) -> list[Container]:
+        """
+        Get the list of containers.
+
+        Returns:
+        - list of Container objects.
+        """
         containers = self.client.containers.list()
         return [
             Container(
@@ -70,19 +91,43 @@ class DockerHandler:
             for container in containers
         ]
 
-    def get_logs(self, container_id: str):
+    def get_logs(self, container_id: str) -> str:
+        """
+        Get the logs of a container.
+
+        Args:
+        - container_id: ID of the container.
+
+        Returns:
+        - logs of the container.
+        """
         return (
             self.client.containers.get(container_id)
             .logs(tail=100, stream=False, timestamps=True)
             .decode("utf-8")
         )
 
-    def stream_logs(self, container_id: str):
+    def stream_logs(self, container_id: str) -> str:
+        """
+        Stream the logs of a container.
+
+        Args:
+        - container_id: ID of the container.
+
+        Returns:
+        - logs of the container.
+        """
         return self.client.containers.get(container_id).logs(
             stream=True, follow=True, tail=100, timestamps=True
         )
 
-    def get_volumes(self):
+    def get_volumes(self) -> list[Volume]:
+        """
+        Get the list of volumes.
+
+        Returns:
+        - list of Volume objects.
+        """
         containers = self.client.containers.list()
         volume_containers = {
             container.name: {"name": volume["Name"], "mountpoint": volume["Source"]}
@@ -116,5 +161,14 @@ class DockerHandler:
                 )
         return return_data
 
-    def get_container_stats(self, container_id: str):
+    def get_container_stats(self, container_id: str) -> dict:
+        """
+        Get the stats of a container.
+
+        Args:
+        - container_id: ID of the container.
+
+        Returns:
+        - stats of the container.
+        """
         return self.client.containers.get(container_id).stats(stream=False)

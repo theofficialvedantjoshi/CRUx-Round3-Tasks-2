@@ -18,8 +18,8 @@ keybinds:
   QUIT: "e"
 
 colors:
-  CONSOLE: dark_blue
-  PANEL_FOCUS: white
+  CONSOLE: white
+  PANEL_FOCUS: black
 
 other:
   LOG_TAIL: 100

@@ -3,7 +3,10 @@ import os
 from backend import DockerHandler, get_config
 
 
-def backup(default_config):
+def backup() -> None:
+    """
+    Backup all volumes associated with containers in the environment.
+    """
     docker_handler = DockerHandler()
     default_config, _ = get_config(False, docker_handler.get_projects_from_env())
     backup_dir = (

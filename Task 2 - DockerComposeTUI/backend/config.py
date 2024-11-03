@@ -4,7 +4,16 @@ from models import Colors, Config, ProjectConfig
 from yaml import Loader, load
 
 
-def get_config(projects: list[str]):
+def get_config(projects: list[str]) -> tuple[Config, dict[str, ProjectConfig]]:
+    """
+    Get the default and project specific configurations.
+
+    Args:
+    - projects: list of project directories.
+
+    Returns:
+    - tuple of Config and dict of ProjectConfig.
+    """
     if not os.path.exists(
         os.path.join(
             os.path.dirname(os.path.dirname(__file__)), "dockertui.config.yaml"
