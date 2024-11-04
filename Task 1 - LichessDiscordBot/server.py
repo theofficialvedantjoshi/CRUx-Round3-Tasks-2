@@ -70,7 +70,7 @@ def authorize():
         r.set(
             f"auth_{discord_user_id}",
             json.dumps(asdict(auth)),
-            ex=3600,
+            ex=7200,
         )
         return jsonify(response.json())
     except Exception as e:
