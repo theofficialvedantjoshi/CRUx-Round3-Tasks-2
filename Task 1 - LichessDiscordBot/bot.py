@@ -21,11 +21,3 @@ class Chessify(commands.Bot):
 
     async def on_ready(self):
         await self.tree.sync()
-
-
-# token = json.loads(r.get("auth_433582252790906891").decode("utf-8"))
-# print(token)
-# session = berserk.TokenSession(token["token"])
-# client = berserk.Client(session=session)
-# games = client.account.get()
-# print(games)

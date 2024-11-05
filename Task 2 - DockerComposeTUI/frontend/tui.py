@@ -332,7 +332,6 @@ class TUI:
         else:
             body = self._create_right_panel(100)
             layout["body"].update(body)
-            # layout["body"].split_row(self._create_left_panel(100), Layout())
         layout["footer"].update(self._create_stdout_panel())
         self.console.print(layout)
 
