@@ -2,6 +2,8 @@ import discord
 from discord.ext import commands
 from typing import Optional
 import json
+import discord.ext.commands
+import discord.ext.commands.context as context
 import redis
 import berserk
 import lichess_client
@@ -10,10 +12,12 @@ from board import generate_board, create_board_gif
 import time
 import async_timeout
 
+import discord.ext
+
 r = redis.Redis(host="localhost", port=6379, db=0)
 
 
-def get_auth(user_id) -> tuple:
+def get_auth(user_id: int) -> tuple:
     data = r.get(f"auth_{user_id}")
     if data is None:
         return None, None
@@ -21,7 +25,9 @@ def get_auth(user_id) -> tuple:
     return data["token"], data["lichess_username"]
 
 
-async def stream_game(ctx, game_id, client: lichess_client.APIClient):
+async def stream_game(
+    ctx: context, game_id: str, client: lichess_client.APIClient
+) -> None:
     embed = discord.Embed(title="Game in progress")
     message = await ctx.send(embed=embed)
     async for event in client.boards.stream_game_state(game_id):
@@ -51,7 +57,9 @@ async def stream_game(ctx, game_id, client: lichess_client.APIClient):
         await message.edit(embed=board, attachments=[image])
 
 
-async def stream_events(ctx, client: lichess_client.APIClient, opponent: str):
+async def stream_events(
+    ctx: context, client: lichess_client.APIClient, opponent: str
+) -> None:
 
     try:
         with async_timeout.timeout(3):
@@ -70,11 +78,12 @@ async def stream_events(ctx, client: lichess_client.APIClient, opponent: str):
 
 
 class Commands(commands.Cog, name="Chessify Commands"):
-    def __init__(self, bot):
+    def __init__(self, bot: discord.ext.commands.Bot):
         self.bot = bot
 
-    @commands.command(name="login")
-    async def login(self, ctx):
+    @commands.hybrid_command(name="login")
+    async def login(self, ctx: context):
+        """Connect your Lichess account to use the bot"""
         token, username = get_auth(ctx.author.id)
         if token is not None:
             await ctx.send(f"Already logged in as {username}")
@@ -91,9 +100,10 @@ class Commands(commands.Cog, name="Chessify Commands"):
             f"Click here to connect your Lichess account: http://localhost:5000/login/{ctx.author.id}"
         )
 
-    @commands.command(name="profile")
-    async def profile(self, ctx):
-        token, username = get_auth(ctx.author.id)
+    @commands.hybrid_command(name="profile")
+    async def profile(self, ctx: context):
+        """View your Lichess profile information"""
+        token, _ = get_auth(ctx.author.id)
         if token is None:
             await ctx.respond(
                 embed=discord.Embed(
@@ -121,22 +131,38 @@ class Commands(commands.Cog, name="Chessify Commands"):
         embed.set_footer(text={user["url"]})
         await ctx.send(embed=embed)
 
-    @commands.command(name="playai")
+    @commands.hybrid_command(name="playai")
     async def playai(
         self,
-        ctx,
+        ctx: context,
         level: Optional[int] = 8,
         clock_limit: Optional[int] = None,
         clock_increment: Optional[int] = None,
         color: Optional[str] = None,
         variant: Optional[str] = "standard",
     ):
-        token, username = get_auth(ctx.author.id)
+        """
+        Start a game against the Lichess AI
+
+        Parameters:
+        -----------
+        level: int
+            AI difficulty (1-8), default: 8
+        clock_limit: int
+            Time control in minutes, default: ∞
+        clock_increment: int
+            Time increment in seconds (max 180)
+        color: str
+            Your color (white/black), default: random
+        variant: str
+            Game variant (standard/crazyhouse/chess960/etc), default: standard
+        """
+        token, _ = get_auth(ctx.author.id)
         if token is None:
             await ctx.send(
                 embed=discord.Embed(
                     title="Not Logged In",
-                    description="Please use `!login` to connect your Lichess account first.",
+                    description="Please use `/login` to connect your Lichess account first.",
                     color=discord.Color.red(),
                 )
             )
@@ -144,11 +170,12 @@ class Commands(commands.Cog, name="Chessify Commands"):
         session = berserk.TokenSession(token)
         client = berserk.Client(session)
         if clock_limit is not None and clock_increment is not None:
-            if clock_limit % 60 != 0 or clock_increment > 180:
+            clock_limit *= 60
+            if clock_increment > 180:
                 await ctx.send(
                     embed=discord.Embed(
                         title="Invalid Time Control",
-                        description="Clock limit must be divisible by 60 representing minutes and increment must be ≤ 180 seconds",
+                        description="Clock limit must be in minutes and increment must be ≤ 180 seconds",
                         color=discord.Color.red(),
                     )
                 )
@@ -165,12 +192,12 @@ class Commands(commands.Cog, name="Chessify Commands"):
                 title="Game Created!",
                 description=(
                     f"**Level:** AI Level {level}\n"
-                    f"**Time Control:** {clock_limit//60 if clock_limit else '∞'}+{clock_increment or 0}\n"
+                    f"**Time Control:** {clock_limit if clock_limit else '∞'} + {clock_increment or 0}\n"
                     f"**Color:** {color or 'Random'}\n"
                     f"**Variant:** {variant.title()}\n"
                     f"**Game ID:** {game['id']}\n\n"
                     f"[Play on Lichess](https://lichess.org/{game['id']})\n"
-                    "Or play here using `!stream` and `!move`"
+                    "Or play here using `/stream` and `/move`"
                 ),
                 color=discord.Color.green(),
             )
@@ -185,10 +212,10 @@ class Commands(commands.Cog, name="Chessify Commands"):
                 )
             )
 
-    @commands.command(name="duel")
+    @commands.hybrid_command(name="duel")
     async def duel(
         self,
-        ctx,
+        ctx: context,
         user: discord.Member,
         rated: bool = False,
         clock_limit: Optional[int] = None,
@@ -196,12 +223,30 @@ class Commands(commands.Cog, name="Chessify Commands"):
         color: Optional[str] = None,
         variant: str = "standard",
     ):
-        token, username = get_auth(ctx.author.id)
+        """
+        Challenge another Discord user to a game
+
+        Parameters:
+        -----------
+        user: @mention
+            The Discord user to challenge
+        rated: bool
+            Whether the game should be rated (True/False)
+        clock_limit: int
+            Time control in minutes, default: ∞
+        clock_increment: int
+            Time increment in seconds (max 180)
+        color: str
+            Your color (white/black), default: random
+        variant: str
+            Game variant (standard/crazyhouse/chess960/etc), default: standard
+        """
+        token, _ = get_auth(ctx.author.id)
         if token is None:
             await ctx.send(
                 embed=discord.Embed(
                     title="Not Logged In",
-                    description="Please use `!login` to connect your Lichess account first.",
+                    description="Please use `/login` to connect your Lichess account first.",
                     color=discord.Color.red(),
                 )
             )
@@ -236,8 +281,8 @@ class Commands(commands.Cog, name="Chessify Commands"):
                         f"**Time Control:** {clock_limit//60 if clock_limit else '∞'}+{clock_increment or 0}\n"
                         f"**Variant:** {variant.title()}\n\n"
                         "Reply to this message with:\n"
-                        "`!accept` to accept the challenge\n"
-                        "`!decline` to decline"
+                        "`/accept` to accept the challenge\n"
+                        "`/decline` to decline"
                     ),
                     color=discord.Color.blue(),
                 )
@@ -252,15 +297,23 @@ class Commands(commands.Cog, name="Chessify Commands"):
                 )
             )
 
-    @commands.command(name="stream")
-    async def stream(self, ctx, game_id: str):
+    @commands.hybrid_command(name="stream")
+    async def stream(self, ctx: context, game_id: str):
+        """
+        Stream a game in progress
+
+        Parameters:
+        -----------
+        game_id: str
+            The ID of the game to stream
+        """
         print(game_id)
-        token, username = get_auth(ctx.author.id)
+        token, _ = get_auth(ctx.author.id)
         if token is None:
             await ctx.send(
                 embed=discord.Embed(
                     title="Not Logged In",
-                    description="Please use `!login` to connect your Lichess account first.",
+                    description="Please use `/login` to connect your Lichess account first.",
                     color=discord.Color.red(),
                 )
             )
@@ -278,14 +331,21 @@ class Commands(commands.Cog, name="Chessify Commands"):
                 )
             )
 
-    @commands.command(name="move")
-    async def move(self, ctx, move):
-        token, username = get_auth(ctx.author.id)
+    @commands.hybrid_command(name="move")
+    async def move(self, ctx: context, move: str):
+        """
+        Make a move in the current game
+
+        Parameters:
+        -----------
+        move: str in uci notation or "resign" or "draw".
+        """
+        token, _ = get_auth(ctx.author.id)
         if token is None:
             await ctx.send(
                 embed=discord.Embed(
                     title="Not Logged In",
-                    description="Please use `!login` to connect your Lichess account first.",
+                    description="Please use `/login` to connect your Lichess account first.",
                     color=discord.Color.red(),
                 )
             )
@@ -341,14 +401,17 @@ class Commands(commands.Cog, name="Chessify Commands"):
                 )
             )
 
-    @commands.command(name="accept")
-    async def accept(self, ctx):
-        token, username = get_auth(ctx.author.id)
+    @commands.hybrid_command(name="accept")
+    async def accept(self, ctx: context):
+        """
+        Accept a challenge by replying to the challenge message
+        """
+        token, _ = get_auth(ctx.author.id)
         if token is None:
             await ctx.send(
                 embed=discord.Embed(
                     title="Not Logged In",
-                    description="Please use `!login` to connect your Lichess account first.",
+                    description="Please use `/login` to connect your Lichess account first.",
                     color=discord.Color.red(),
                 )
             )
@@ -379,7 +442,6 @@ class Commands(commands.Cog, name="Chessify Commands"):
             client = lichess_client.APIClient(token)
             await client.challenges.accept(challenge_id)
             r.delete(f"challenge_{challenge_id}")
-            # r.set(f"opponent_{ctx.author.id}", opponent)
             await ctx.send(
                 embed=discord.Embed(
                     title="Challenge Accepted",
@@ -397,15 +459,21 @@ class Commands(commands.Cog, name="Chessify Commands"):
                 )
             )
 
-    @commands.command(name="decline")
-    async def decline(self, ctx, reason: Optional[str] = "generic"):
-        # Enum: "generic" "later" "tooFast" "tooSlow" "timeControl" "rated" "casual" "standard" "variant" "noBot" "onlyBot"
-        token, username = get_auth(ctx.author.id)
+    @commands.hybrid_command(name="decline")
+    async def decline(self, ctx: context, reason: Optional[str] = "generic"):
+        """
+        Decline a challenge by replying to the challenge message
+
+        Parameters:
+        -----------
+        reason: str (optional) - Reason for declining the challenge (generic, later, tooFast, tooSlow, timeControl, rated, casual, standard, variant, noBot, onlyBot) - default: generic
+        """
+        token, _ = get_auth(ctx.author.id)
         if token is None:
             await ctx.send(
                 embed=discord.Embed(
                     title="Not Logged In",
-                    description="Please use `!login` to connect your Lichess account first.",
+                    description="Please use `/login` to connect your Lichess account first.",
                     color=discord.Color.red(),
                 )
             )
@@ -450,14 +518,22 @@ class Commands(commands.Cog, name="Chessify Commands"):
                 )
             )
 
-    @commands.command(name="create_gif")
-    async def create_gif(self, ctx, game_id):
-        token, username = get_auth(ctx.author.id)
+    @commands.hybrid_command(name="create_gif")
+    async def create_gif(self, ctx: context, game_id: str):
+        """
+        Create an animated GIF of any completed game
+
+        Parameters:
+        -----------
+        game_id: str
+            The Lichess game ID to animate
+        """
+        token, _ = get_auth(ctx.author.id)
         if token is None:
             await ctx.send(
                 embed=discord.Embed(
                     title="Not Logged In",
-                    description="Please use `!login` to connect your Lichess account first.",
+                    description="Please use `/login` to connect your Lichess account first.",
                     color=discord.Color.red(),
                 )
             )

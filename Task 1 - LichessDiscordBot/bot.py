@@ -14,15 +14,13 @@ class Chessify(commands.Bot):
         intents.guilds = True
         intents.dm_messages = True
         intents.message_content = True
-        super().__init__(command_prefix="!", intents=intents)
+        super().__init__(command_prefix="/", intents=intents)
 
     async def setup_hook(self):
         await self.add_cog(Commands(self))
 
     async def on_ready(self):
-        # get user by id
-        user = await self.fetch_user(433582252790906891)
-        # send message in users last texted channel
+        await self.tree.sync()
 
 
 # token = json.loads(r.get("auth_433582252790906891").decode("utf-8"))
