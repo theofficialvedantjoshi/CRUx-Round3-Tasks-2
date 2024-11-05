@@ -8,7 +8,7 @@ def backup() -> None:
     Backup all volumes associated with containers in the environment.
     """
     docker_handler = DockerHandler()
-    default_config, _ = get_config(False, docker_handler.get_projects_from_env())
+    default_config, _ = get_config(docker_handler.get_projects_from_env())
     backup_dir = (
         os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         + default_config.backup.BACKUP_DIR
