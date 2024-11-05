@@ -62,6 +62,17 @@ class TUI:
         self.logs_offset = 0
         self.max_logs_display = self.config.other.MAX_LOGS_DISPLAY
         self.container_terminal = False
+        self.status_emojis = {
+            "running": "🟢",
+            "exited": "🔴",
+            "created": "🟡",
+            "paused": "⏸️",
+        }
+        self.health_emojis = {
+            "healthy": "💚",
+            "unhealthy": "💔",
+            "starting": "💫",
+        }
 
     def _stream_docker_compose(self, process: subprocess.Popen) -> None:
         """
@@ -80,52 +91,58 @@ class TUI:
         process.wait()
 
     def _create_left_panel(self, width: int) -> Panel:
-        """Create the left panel of the TUI.
-        Args:
-            width (int): The width of the panel.
-        Returns:
-            Panel: The left panel of the TUI."""
+        """Create the left panel of the TUI."""
         table = Table(
-            box=box.SQUARE,
+            box=box.ROUNDED,
+            show_header=True,
+            header_style="bold cyan",
             show_edge=False,
+            padding=(0, 1),
+            expand=True,
         )
-        table.add_column("Projects", justify="left", width=width)
+        table.add_column("📂 Projects", justify="left", width=width)
+
         if len(self.projects) == 0:
             table.add_row(
-                "No projects found in PROJECTS_PATH. Edit PROJECTS_PATH in .env to add projects."
+                "⚠️  No projects found in PROJECTS_PATH", style="italic yellow"
             )
         else:
             for i, project in enumerate(self.projects):
                 if i == self.project_index and self.focused_panel == "left":
                     table.add_row(
-                        "🗀 " + project,
-                        style=self.config.colors.PANEL_FOCUS,
+                        f"📁 {project}",
+                        style="bold cyan reverse",
                         end_section=True,
                     )
                 else:
-                    table.add_row("🗀 " + project, end_section=True)
+                    table.add_row(f"📁 {project}", style="dim white", end_section=True)
+
         return Panel(
             table,
-            title="Projects",
-            border_style=(
-                self.config.colors.CONSOLE
-                if self.focused_panel == "right"
-                else self.config.colors.PANEL_FOCUS
-            ),
+            title="[bold cyan]Projects Dashboard[/]",
+            border_style=("dim white" if self.focused_panel == "right" else "cyan"),
             padding=(1, 1),
+            box=box.ROUNDED,
         )
 
     def _create_containter_panel(self, width: int) -> Panel:
-        """Create the container panel of the TUI.
-        Args:
-            width (int): The width of the panel.
-        Returns:
-            Panel: The container panel of the TUI."""
-        table = Table(box=box.SQUARE, show_edge=False)
-        table.add_column("Containers", justify="left", width=width)
+        """Create the container panel of the TUI."""
+        table = Table(
+            box=box.ROUNDED,
+            show_header=True,
+            header_style="bold magenta",
+            show_edge=False,
+            padding=(0, 1),
+            expand=True,
+        )
+        table.add_column(
+            "🐳 Containers | Status | Health | Image | Ports ",
+            justify="left",
+            width=width,
+        )
         if len(self.containers) == 0:
             table.add_row(
-                "No containers found. Compose a project first by pressing 'u'"
+                "💡 No containers found. Press 'u' to compose", style="italic yellow"
             )
         else:
             for i, container in enumerate(self.containers):
@@ -134,8 +151,9 @@ class TUI:
                 health = container.health
                 ports = container.ports
                 image = container.image
-                container_info = f"❑ {name} | {status} | {health} | {image} | {ports}"
-                max_visible_chars = width - 10
+                container_info = f"{self.status_emojis.get(status.lower(), '❓')} {name} | {self.health_emojis.get(health.lower(), 'ℹ️')} {health} | 📦 {image} | 🔌 {ports}"
+                max_visible_chars = width - 15
+
                 if i == self.container_index:
                     if self.container_hindex < 0:
                         self.container_hindex = 0
@@ -149,83 +167,95 @@ class TUI:
                 if i == self.container_index and self.focused_panel == "right":
                     table.add_row(
                         container_info,
-                        style=self.config.colors.PANEL_FOCUS,
+                        style="bold magenta reverse",
                         end_section=True,
                     )
                 else:
-                    table.add_row(container_info, end_section=True)
+                    table.add_row(container_info, style="dim white", end_section=True)
+
         return Panel(
             table,
-            title="Containers",
-            border_style=(
-                self.config.colors.CONSOLE
-                if self.focused_panel == "left"
-                else self.config.colors.PANEL_FOCUS
-            ),
+            title="[bold magenta]Container Management[/]",
+            border_style=("dim white" if self.focused_panel == "left" else "magenta"),
             padding=(1, 1),
+            box=box.ROUNDED,
         )
 
     def _create_volumes_panel(self, width: int) -> Panel:
-        """Create the volumes panel of the TUI.
-        Args:
-            width (int): The width of the panel.
-        Returns:
-            Panel: The volumes panel of the TUI."""
-        table = Table(box=box.SQUARE, show_edge=False)
-        table.add_column("Volumes", justify="left", width=width)
+        """Create the volumes panel of the TUI."""
+        table = Table(
+            box=box.ROUNDED,
+            show_header=True,
+            header_style="bold green",
+            show_edge=False,
+            padding=(0, 1),
+            expand=True,
+        )
+        table.add_column("💾 Volumes", justify="left", width=width)
+
         if len(self.volumes) == 0:
-            table.add_row("No volumes found.")
+            table.add_row("📝 No volumes found.", style="italic yellow")
         else:
             for i, volume in enumerate(self.volumes):
                 if i == self.volume_index:
                     attr = self.volume_attrs[self.volumes_hindex]
                     value = asdict(volume).get(attr)
-                    volume_info = f"⊟ {attr} - {value}"
+                    volume_info = f"💽 {attr} - {value}"
                 else:
-                    volume_info = f"⊟ Name - {volume.name}"
+                    volume_info = f"💽 Name - {volume.name}"
+
                 if i == self.volume_index and self.focused_panel == "right":
                     table.add_row(
                         volume_info,
-                        style=self.config.colors.PANEL_FOCUS,
+                        style="bold green reverse",
                         end_section=True,
                     )
                 else:
-                    table.add_row(volume_info, end_section=True)
+                    table.add_row(volume_info, style="dim white", end_section=True)
+
         return Panel(
             table,
-            title="Volumes",
-            border_style=(
-                self.config.colors.CONSOLE
-                if self.focused_panel == "left"
-                else self.config.colors.PANEL_FOCUS
-            ),
+            title="[bold green]Volume Explorer[/]",
+            border_style=("dim white" if self.focused_panel == "left" else "green"),
+            box=box.ROUNDED,
         )
 
     def _create_logs_panel(self, width: int) -> Panel:
-        """Create the logs panel of the TUI.
-        Args:
-            width (int): The width of the panel.
-        Returns:
-            Panel: The logs panel of the TUI."""
+        """Create the logs panel of the TUI."""
         if len(self.containers) == 0:
             self.right_panel = "containers"
             return self._create_right_panel(width)
-        table = Table(box=box.SQUARE, show_edge=False)
-        table.add_column("Logs", justify="left", width=width)
+
+        table = Table(
+            box=box.ROUNDED,
+            show_header=True,
+            header_style="bold yellow",
+            show_edge=False,
+            padding=(0, 1),
+            expand=True,
+        )
+        table.add_column("📜 Logs", justify="left", width=width)
+
         log_lines = self.logs.split("\n")
         displayed_logs = log_lines[
             self.logs_offset : self.logs_offset + self.max_logs_display
         ]
+
         for i, log in enumerate(displayed_logs):
-            table.add_row(f"{self.logs_offset + i + 1} | {log}")
+            style = "dim white"
+            if "error" in log.lower():
+                style = "red"
+            elif "warning" in log.lower():
+                style = "yellow"
+            elif "info" in log.lower():
+                style = "cyan"
+            table.add_row(f"📎 {self.logs_offset + i + 1} | {log}", style=style)
+
         return Panel(
             table,
-            title=f"Log Inspection ({self.logs_offset + 1}-{min(self.logs_offset + self.max_logs_display, len(log_lines))} of {len(log_lines)})",
-            border_style=(
-                self.config.colors.CONSOLE
-                if self.focused_panel == "left"
-                else self.config.colors.PANEL_FOCUS
-            ),
+            title=f"[bold yellow]Log Inspector[/] 📑 ({self.logs_offset + 1}-{min(self.logs_offset + self.max_logs_display, len(log_lines))} of {len(log_lines)})",
+            border_style=("dim white" if self.focused_panel == "left" else "yellow"),
+            box=box.ROUNDED,
         )
 
     def _create_right_panel(self, width: int) -> Panel:
@@ -242,16 +272,28 @@ class TUI:
             return self._create_volumes_panel(width)
 
     def _create_stdout_panel(self) -> Panel:
-        """Create the stdout panel of the TUI.
-        Returns:
-            Panel: The stdout panel of the TUI."""
-        text = "\n".join(self.stdout[-self.max_stdout_lines :])
+        """Create the stdout panel of the TUI."""
+        table = Table(box=box.ROUNDED, show_edge=False, padding=(0, 1), expand=True)
+        table.add_column("Output", style="cyan", justify="left")
+
+        for line in self.stdout[-self.max_stdout_lines :]:
+            style = "dim white"
+            if "error" in line.lower():
+                style = "red bold"
+            elif "warning" in line.lower():
+                style = "yellow"
+            elif "success" in line.lower() or "done" in line.lower():
+                style = "green"
+
+            table.add_row(f"⚡ {line}", style=style)
+
         return Panel(
-            text,
-            title="STDOUT",
+            table,
+            title="[bold cyan]System Output[/] 🖥️",
             height=20,
             title_align="left",
-            border_style=self.config.colors.CONSOLE,
+            border_style="cyan",
+            box=box.ROUNDED,
         )
 
     def _add_output(self, output: str) -> None:
@@ -288,7 +330,9 @@ class TUI:
             body.split_row(self._create_left_panel(100), self._create_right_panel(100))
             layout["body"].update(body)
         else:
-            layout["body"].split_row(self._create_left_panel(100), Layout())
+            body = self._create_right_panel(100)
+            layout["body"].update(body)
+            # layout["body"].split_row(self._create_left_panel(100), Layout())
         layout["footer"].update(self._create_stdout_panel())
         self.console.print(layout)
 
@@ -366,10 +410,10 @@ class TUI:
 
     def handle_container_terminal(self):
         """Handle opening a terminal in a container."""
-        self.container_terminal = True
-        self._render()
         if len(self.containers) == 0:
             return
+        self.container_terminal = True
+        self._render()
         container_id = self.containers[self.container_index].id
         try:
             subprocess.run(
@@ -448,6 +492,10 @@ class TUI:
         """Handle quitting the TUI."""
         subprocess.run(["tmux", "kill-session", "-t", "docker-tui"])
 
+    def check_container_terminal(self):
+        if self.container_terminal:
+            self.container_terminal = False
+
     def on_key(self):
         """Handle key presses in the TUI.
         Uses raw input for non-blocking key presses.
@@ -482,6 +530,8 @@ class TUI:
                                 self.containers[self.container_index].id
                             )
                         handler()
+                    self.check_container_terminal()
+
             except Exception as e:
                 print(e)
                 pass

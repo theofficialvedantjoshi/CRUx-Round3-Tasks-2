@@ -19,11 +19,10 @@ keybinds:
 
 colors:
   CONSOLE: white
-  PANEL_FOCUS: black
 
 other:
   LOG_TAIL: 100
-  MAX_LOGS_DISPLAY: 15
+  MAX_LOGS_DISPLAY: 30
   MAX_STDOUT_DISPLAY: 20
 
 monitor:

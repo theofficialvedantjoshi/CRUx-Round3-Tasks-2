@@ -27,7 +27,6 @@ class KeyBinds:
 @dataclass
 class Colors:
     CONSOLE: str = "dark_blue"
-    PANEL_FOCUS: str = "white"
 
     def __eq__(self, other):
         if isinstance(other, Colors):
