@@ -116,7 +116,7 @@ class DockerMonitor:
                 msg["To"] = self.email
                 msg["Subject"] = self.email_subject
                 msg.attach(MIMEText(self.email_body, "plain"))
-                server.login("dockertui@gmail.com", os.getenv("MAIL_APP_PASSWORD"))
+                server.login(msg["From"], os.getenv("MAIL_APP_PASSWORD"))
                 server.send_message(msg)
                 self.email_count += 1
                 self.last_sent_email = time.time()

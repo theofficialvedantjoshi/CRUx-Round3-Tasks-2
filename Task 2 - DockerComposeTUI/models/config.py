@@ -57,7 +57,7 @@ class DockerMonitor:
 @dataclass
 class ProjectMonitor:
     CPU_THRESHOLD: float = 80.0
-    MEM_THRESHOLD: float = 80.0
+    MEMORY_THRESHOLD: float = 80.0
 
 
 @dataclass
@@ -99,7 +99,10 @@ class ProjectConfig:
     monitor: ProjectMonitor = ProjectMonitor()
 
     def from_dict(self, data: dict):
-        return ProjectConfig(**data)
+        project_monitor = data.get("monitor")
+        if project_monitor:
+            return ProjectConfig(monitor=ProjectMonitor(**project_monitor))
+        return ProjectConfig()
 
     def __eq__(self, other):
         if isinstance(other, ProjectConfig):
