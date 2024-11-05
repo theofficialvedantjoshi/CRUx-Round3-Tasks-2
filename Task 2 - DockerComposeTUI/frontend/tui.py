@@ -152,12 +152,17 @@ class TUI:
                 ports = container.ports
                 image = container.image
                 container_info = f"{self.status_emojis.get(status.lower(), '❓')} {name} | {self.health_emojis.get(health.lower(), 'ℹ️')} {health} | 📦 {image} | 🔌 {ports}"
-                max_visible_chars = width - 15
+                max_visible_chars = width - 25
 
                 if i == self.container_index:
-                    if self.container_hindex < 0:
-                        self.container_hindex = 0
                     if len(container_info) > max_visible_chars:
+                        self.container_hindex = max(
+                            0,
+                            min(
+                                self.container_hindex,
+                                len(container_info) - max_visible_chars,
+                            ),
+                        )
                         container_info = container_info[
                             self.container_hindex : self.container_hindex
                             + max_visible_chars
