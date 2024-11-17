@@ -48,6 +48,7 @@ def generate_board(moves: list[str]) -> str:
     figure.savefig(buf, format="png")
     buf.seek(0)
     image = discord.File(buf, filename="board.png")
+    buf.close()
     plt.clf()
     embed = discord.Embed(title="Game in progress", color=discord.Color.green())
     embed.set_image(url="attachment://board.png")

@@ -58,20 +58,23 @@ async def stream_game(
 
 
 async def stream_events(
-    ctx: context, client: lichess_client.APIClient, opponent: str
+    ctx: context, client: lichess_client.APIClient, opponent: str, opponent_id: str
 ) -> None:
 
     try:
-        with async_timeout.timeout(3):
+        with async_timeout.timeout(5):
             async for event in client.boards.stream_incoming_events():
                 print(event)
                 event = json.loads(event.entity.content)
     except asyncio.TimeoutError:
         if event["type"] == "gameStart" and event["game"]["opponent"]["id"] == opponent:
             r.set(f"game_{ctx.author.id}", event["game"]["id"])
+            r.set(f"game_{opponent_id}", event["game"]["id"])
             await ctx.send("Game started!")
             await ctx.send(f"Game ID: {event['game']['id']}")
-            await ctx.send(f"{ctx.author.mention} playing as {event['game']['color']}")
+            await ctx.send(
+                f"{ctx.author.mention} playInvalid challenge ID provided.g as {event['game']['color']}"
+            )
             asyncio.create_task(stream_game(ctx, event["game"]["id"], client))
         else:
             await ctx.send("Game not found")
@@ -116,7 +119,7 @@ class Commands(commands.Cog, name="Chessify Commands"):
             return
         session = berserk.TokenSession(token)
         client = berserk.Client(session)
-        user = await client.account.get()
+        user = client.account.get()
         embed = discord.Embed(
             title=f"{user['username']}'s Profile",
             description=(
@@ -281,14 +284,18 @@ class Commands(commands.Cog, name="Chessify Commands"):
                         f"**Time Control:** {clock_limit//60 if clock_limit else '∞'}+{clock_increment or 0}\n"
                         f"**Variant:** {variant.title()}\n\n"
                         "Reply to this message with:\n"
-                        "`/accept` to accept the challenge\n"
-                        "`/decline` to decline"
+                        "`accept` to accept the challenge\n"
+                        "`decline` to decline"
                     ),
                     color=discord.Color.blue(),
                 )
             )
-            r.set(f"challenge_{challenge['id']}", duel_message.id)
+            r.set(
+                f"challenge_{challenge['id']}",
+                json.dumps({"message_id": duel_message.id, "user_id": user.id}),
+            )
         except Exception as e:
+            print(e)
             await ctx.send(
                 embed=discord.Embed(
                     title="Error Creating Challenge",
@@ -401,7 +408,7 @@ class Commands(commands.Cog, name="Chessify Commands"):
                 )
             )
 
-    @commands.hybrid_command(name="accept")
+    @commands.command(name="accept")
     async def accept(self, ctx: context):
         """
         Accept a challenge by replying to the challenge message
@@ -420,15 +427,12 @@ class Commands(commands.Cog, name="Chessify Commands"):
         client = berserk.Client(session)
         challenges = client.challenges.get_mine()
         print(challenges)
-        challenge_id, opponent = next(
-            (
-                (challenge["id"], challenge["challenger"]["id"])
-                for challenge in challenges["in"]
-                if r.get(f"challenge_{challenge['id']}").decode("utf-8")
-                == str(ctx.message.reference.message_id)
-            ),
-            None,
-        )
+        challenge_id = None
+        for challenge in challenges["in"]:
+            data = json.loads(r.get(f"challenge_{challenge['id']}").decode("utf-8"))
+            if data.get("message_id") == str(ctx.message.reference.message_id):
+                challenge_id = challenge["id"]
+                break
         if challenge_id is None:
             await ctx.send(
                 embed=discord.Embed(
@@ -441,6 +445,9 @@ class Commands(commands.Cog, name="Chessify Commands"):
         try:
             client = lichess_client.APIClient(token)
             await client.challenges.accept(challenge_id)
+            opponent_user_id = json.loads(
+                r.get(f"challenge_{challenge_id}").decode("utf-8")
+            ).get("user_id")
             r.delete(f"challenge_{challenge_id}")
             await ctx.send(
                 embed=discord.Embed(
@@ -449,8 +456,9 @@ class Commands(commands.Cog, name="Chessify Commands"):
                     color=discord.Color.green(),
                 )
             )
-            asyncio.create_task(stream_events(ctx, client, opponent))
+            asyncio.create_task(stream_events(ctx, client, opponent, opponent_user_id))
         except Exception as e:
+            print(e)
             await ctx.send(
                 embed=discord.Embed(
                     title="Error Accepting Challenge",
@@ -459,7 +467,7 @@ class Commands(commands.Cog, name="Chessify Commands"):
                 )
             )
 
-    @commands.hybrid_command(name="decline")
+    @commands.command(name="decline")
     async def decline(self, ctx: context, reason: Optional[str] = "generic"):
         """
         Decline a challenge by replying to the challenge message
@@ -481,15 +489,12 @@ class Commands(commands.Cog, name="Chessify Commands"):
         session = berserk.TokenSession(token)
         client = berserk.Client(session)
         challenges = client.challenges.get_mine()
-        challenge_id = next(
-            (
-                challenge["id"]
-                for challenge in challenges["in"]
-                if r.get(f"challenge_{challenge['id']}")
-                == ctx.message.reference.message_id
-            ),
-            None,
-        )
+        challenge_id = None
+        for challenge in challenges["in"]:
+            data = json.loads(r.get(f"challenge_{challenge['id']}").decode("utf-8"))
+            if data.get("message_id") == str(ctx.message.reference.message_id):
+                challenge_id = challenge["id"]
+                break
         if challenge_id is None:
             await ctx.send(
                 embed=discord.Embed(
