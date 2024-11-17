@@ -68,13 +68,12 @@ async def stream_events(
                 event = json.loads(event.entity.content)
     except asyncio.TimeoutError:
         if event["type"] == "gameStart" and event["game"]["opponent"]["id"] == opponent:
+            print(opponent_id, event["game"]["id"])
             r.set(f"game_{ctx.author.id}", event["game"]["id"])
             r.set(f"game_{opponent_id}", event["game"]["id"])
             await ctx.send("Game started!")
             await ctx.send(f"Game ID: {event['game']['id']}")
-            await ctx.send(
-                f"{ctx.author.mention} playInvalid challenge ID provided.g as {event['game']['color']}"
-            )
+            await ctx.send(f"{ctx.author.mention} playing as {event['game']['color']}")
             asyncio.create_task(stream_game(ctx, event["game"]["id"], client))
         else:
             await ctx.send("Game not found")
@@ -292,7 +291,7 @@ class Commands(commands.Cog, name="Chessify Commands"):
             )
             r.set(
                 f"challenge_{challenge['id']}",
-                json.dumps({"message_id": duel_message.id, "user_id": user.id}),
+                json.dumps({"message_id": duel_message.id, "user_id": ctx.author.id}),
             )
         except Exception as e:
             print(e)
@@ -430,8 +429,15 @@ class Commands(commands.Cog, name="Chessify Commands"):
         challenge_id = None
         for challenge in challenges["in"]:
             data = json.loads(r.get(f"challenge_{challenge['id']}").decode("utf-8"))
-            if data.get("message_id") == str(ctx.message.reference.message_id):
+            print(
+                data.get("message_id"),
+                type(data.get("message_id")),
+                ctx.message.reference.message_id,
+                type(ctx.message.reference.message_id),
+            )
+            if data.get("message_id") == ctx.message.reference.message_id:
                 challenge_id = challenge["id"]
+                opponent = challenge["challenger"]["id"]
                 break
         if challenge_id is None:
             await ctx.send(
@@ -492,7 +498,7 @@ class Commands(commands.Cog, name="Chessify Commands"):
         challenge_id = None
         for challenge in challenges["in"]:
             data = json.loads(r.get(f"challenge_{challenge['id']}").decode("utf-8"))
-            if data.get("message_id") == str(ctx.message.reference.message_id):
+            if data.get("message_id") == ctx.message.reference.message_id:
                 challenge_id = challenge["id"]
                 break
         if challenge_id is None:
